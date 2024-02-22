@@ -114,11 +114,10 @@ def matmul(a, b, activation=None):
 
 
 def benchmark(workload:str, batch: int, n: int, m: int, k: int, acc_dtype: str, out_dtype: str, provider: str, out_dir: str):
-    if acc_dtype == "f16":
-        input_dtype = torch.float16
+    input_dtype = torch.float16
     torch.manual_seed(0)
-    a = torch.randn((m, k), device='cuda', dtype=input_dtype)
-    b = torch.randn((k, n), device='cuda', dtype=input_dtype)
+    a = torch.randn((batch, m, k), device='cuda', dtype=input_dtype)
+    b = torch.randn((batch, k, n), device='cuda', dtype=input_dtype)
     quantiles = [0.5, 0.2, 0.8]
     if provider == 'triton':
         ms, min_ms, max_ms = triton.testing.do_bench(lambda: matmul(a, b), quantiles=quantiles)
@@ -144,5 +143,5 @@ def bench_triton(args, out_dir):
             )
     else:
         raise Exception("Unsupported operator!")
-    print(res)
+    print(res, "ms")
 

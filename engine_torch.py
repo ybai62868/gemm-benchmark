@@ -2,8 +2,7 @@ import torch
 import triton
 
 def benchmark(workload:str, batch: int, n: int, m: int, k: int, acc_dtype: str, out_dtype: str, provider: str, out_dir: str):
-    if acc_dtype == "f16":
-        input_dtype = torch.float16
+    input_dtype = torch.float16
     a = torch.randn((m, k), device='cuda', dtype=input_dtype)
     b = torch.randn((k, n), device='cuda', dtype=input_dtype)
     quantiles = [0.5, 0.2, 0.8]
@@ -31,4 +30,4 @@ def bench_torch(args, out_dir):
             )
     else:
         raise Exception("Unsupported operator!")
-    print(res)
+    print(res, "ms")
