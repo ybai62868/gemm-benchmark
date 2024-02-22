@@ -1,4 +1,4 @@
-# gemm-benchmark
+# gemm-benchmark on NV GPUs
 Python based gemm benchmark for tensor computation
 
 
