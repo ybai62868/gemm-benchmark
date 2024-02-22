@@ -30,4 +30,4 @@ def bench_torch(args, out_dir):
             )
     else:
         raise Exception("Unsupported operator!")
-    print(res, "ms")
+    print(res, "TFLOPS")

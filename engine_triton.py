@@ -143,5 +143,5 @@ def bench_triton(args, out_dir):
             )
     else:
         raise Exception("Unsupported operator!")
-    print(res, "ms")
+    print(res, "TFLOPS")
 
