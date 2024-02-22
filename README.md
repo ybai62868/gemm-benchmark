@@ -1,6 +1,9 @@
 # gemm-benchmark on NV GPUs
 Python based gemm benchmark for tensor computation
-
+```shell
+1. cd utils/deviceQuery
+2. make -j8
+```
 
 ### LLVM Installation for TVM Meta-Schedule
 ```shell
