@@ -51,7 +51,8 @@ Python based gemm benchmark for tensor computation
 
 ### Run the benchmark with TVM Meta-Schedule
 ```shell
-python bench.py --engine tvm_ms --workload GEMM-1024-1024-1024
+# python bench.py --engine tvm_ms --workload GEMM-1024-1024-1024
+python bench.py --engine tvm_ms --workload GEMM --BSA 10 --HA 512 --WA 1024 --BSB 10 --WB 1024 --HB 512
 ```
 
 ### Results
