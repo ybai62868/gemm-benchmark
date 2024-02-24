@@ -176,14 +176,12 @@ def conv3d_ndhwc_f16(  # pylint: disable=invalid-name,missing-docstring
 
 
 def batch_matmul_nkmk_f16(  # pylint: disable=invalid-name,missing-docstring
-    BSA: int,
-    BSB: int,
+    B: int,
     M: int,
     N: int,
     K: int,
     out_dtype: str = "float32",
 ) -> Tuple[te.Tensor, te.Tensor, te.Tensor]:
-    B = max(BSA, BSB)
     x = te.placeholder((B, M, K), name="X", dtype="float16")
     y = te.placeholder((B, K, N), name="Y", dtype="float16")
     k = te.reduce_axis((0, K), name="k")
@@ -414,12 +412,14 @@ def create_te_workload_f16(
     BSA: int,
     BSB: int,
     HA: int,
-    WB: int,
+    HB: int,
     WA: int,
     out_dtype="float32",
 ) -> tir.PrimFunc:
     workload_func = CONFIGS_F16[name]
-    param = [BSA, BSB, HA, WB, WA]
+    BATCH = max(BSA, BSB)
+    param = [BATCH, HA, HB, WA]
+    print(param)
     f = te.create_prim_func(workload_func(*param, out_dtype=out_dtype))  # type: ignore
     return f
 

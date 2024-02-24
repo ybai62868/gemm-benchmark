@@ -85,7 +85,7 @@ def bench_tvm_ms(args, out_dir):
         args.BSA,
         args.BSB,
         args.HA,
-        args.WB,
+        args.HB,
         args.WA,
         out_dtype=args.out_dtype
     )
