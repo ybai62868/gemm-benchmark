@@ -226,21 +226,15 @@ def GEMM(
     )
 
 
-
-
 def bench_cutlass(args, out_dir):
-    cutlass_workload_dict = {
-        "GEMM-1024-1024-1024": [1024, 1024, 1024],
-        "GEMM-4096-4096-4096": [4096, 4096, 4096],
-    }
-
     cutlass_profiler = f"{args.cutlass_home}/build/tools/profiler/cutlass_profiler"
+    BSC = max(args.BSA, args.BSB)
     if args.workload[0:4] == "GEMM":
         GEMM(workload=args.workload,
-            batch=args.batch_size, 
-            m=cutlass_workload_dict[args.workload][0],
-            n=cutlass_workload_dict[args.workload][0],
-            k=cutlass_workload_dict[args.workload][0],
+            batch=BSC,
+            m=args.HA,
+            k=args.WA,
+            n=args.WB,
             acc_dtype=args.acc_dtype, 
             out_dtype=args.out_dtype, 
             profiler=cutlass_profiler,
@@ -248,3 +242,4 @@ def bench_cutlass(args, out_dir):
             )
     else:
         raise Exception("Unsupported operator!")
+    

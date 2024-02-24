@@ -38,8 +38,13 @@ def parse_args():
         type=str,
         required=True,
     )
+    args.add_argument("--BSA", type=int, required=True)
+    args.add_argument("--HA", type=int, required=True)
+    args.add_argument("--WA", type=int, required=True)
+    args.add_argument("--BSB", type=int, required=True)
+    args.add_argument("--HB", type=int, required=True)
+    args.add_argument("--WB", type=int, required=True)
     args.add_argument("--engine", type=str, choices=['tvm_ms', 'triton', 'cutlass', 'torch'], required=True)
-    args.add_argument("--batch_size", type=int, default=1)
     args.add_argument("--target", type=str)
     args.add_argument("--num_trials", type=int, default=1000)
     # args.add_argument("--work_dir", type=str)
@@ -80,7 +85,18 @@ def bench(command_line_args: Optional[str]=None):
     args = parse_args()
     print(f"current engine is {args.engine}")
 
-    task_name = 'batch_size_{}_{}_{}_input_{}_acc_{}_output_{}'.format(args.batch_size, args.workload, args.engine, args.input_dtype, args.acc_dtype, args.out_dtype)
+    task_name = 'batch_{}_{}_{}_{}_{}_{}_{}_{}_input_{}_acc_{}_output_{}'.format(
+        args.workload,
+        args.BSA, 
+        args.BSB,
+        args.HA,
+        args.WA,
+        args.HB,
+        args.WB, 
+        args.engine, 
+        args.input_dtype, 
+        args.acc_dtype, 
+        args.out_dtype)
     print(task_name)
     bench_dict = {
         "tvm_ms": ("engine_tvm_ms", "bench_tvm_ms"),
@@ -90,8 +106,7 @@ def bench(command_line_args: Optional[str]=None):
     }
     bench_func_tuples = bench_dict[args.engine]
     out_dir = os.path.join(args.log_dir, cuda.query_device_name(short=True), 'workloads')
-
-
+    print(out_dir)
     if args.engine in ["tvm_ms"]:
         trials = args.num_trials
         task_name += "_trials_{}".format(trials)
@@ -104,11 +119,6 @@ def bench(command_line_args: Optional[str]=None):
     bench_func = load_function_from_module(bench_func_tuples[0], bench_func_tuples[1])
     bench_func(args, out_dir)
     
-
-
-
-
-
 
 if __name__ == "__main__":
     bench()

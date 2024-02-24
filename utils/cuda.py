@@ -75,6 +75,7 @@ def max_num_regs_per_sm(cc=None):
 def query_compute_capability():
     # major, minor = query_gpu('compute_cap').split('.')
     binary_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "deviceQuery/deviceQuery")
+    print(binary_path)
 
     results = run_command(f"{binary_path} | grep Capability | tail -n 1 | cut -d':' -f2")
     major, minor = results.split(".")

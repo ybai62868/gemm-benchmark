@@ -17,6 +17,7 @@ import triton.language as tl
     key=['M', 'N', 'K'],
 )
 
+
 @triton.jit
 def matmul_kernel(
     # Pointers to matrices
@@ -57,15 +58,12 @@ def matmul_kernel(
     # initialize and iteratively update accumulator
    
     acc = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
-    # acc = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float16)
-
     for k in range(0, K, BLOCK_SIZE_K):
 
         a = tl.load(A_ptr)
         b = tl.load(B_ptr)
         
         acc += tl.dot(a, b)
-        # acc += tl.dot(a, b, out_dtype=tl.float16)
     
         A_ptr += BLOCK_SIZE_K * stride_ak
         B_ptr += BLOCK_SIZE_K * stride_bk
@@ -84,7 +82,6 @@ def leaky_relu(x):
     return tl.where(x >= 0, x, 0.01 * x)
 
 
-# @lazy_import("torch")
 def matmul(a, b, activation=None):
     # checks constraints
     assert len(a.shape) == len(b.shape) == 3
@@ -112,30 +109,40 @@ def matmul(a, b, activation=None):
     )
     return c
 
+def test_correctness(a, b):
+    torch_output = torch.bmm(a, b)
+    triton_output = matmul(a, b)
+    print(f"triton_output={triton_output}")
+    print(f"torch_output={torch_output}")
+    if torch.allclose(triton_output, torch_output, atol=1e-2, rtol=1e-2):
+        print("✅ Triton and Torch match")
+    else:
+        print("❌ Triton and Torch differ")
 
-def benchmark(workload:str, batch: int, n: int, m: int, k: int, acc_dtype: str, out_dtype: str, provider: str, out_dir: str):
+
+def benchmark(workload:str, BSA:int, BSB:int, n: int, m: int, k: int, acc_dtype: str, out_dtype: str, provider: str, out_dir: str):
     input_dtype = torch.float16
     torch.manual_seed(0)
-    a = torch.randn((batch, m, k), device='cuda', dtype=input_dtype)
-    b = torch.randn((batch, k, n), device='cuda', dtype=input_dtype)
+    a = torch.randn((BSA, m, k), device='cuda', dtype=input_dtype)
+    b = torch.randn((BSB, k, n), device='cuda', dtype=input_dtype)
+    test_correctness(a, b)
+    BSC = max(BSA, BSB)    
     quantiles = [0.5, 0.2, 0.8]
     if provider == 'triton':
         ms, min_ms, max_ms = triton.testing.do_bench(lambda: matmul(a, b), quantiles=quantiles)
-    perf = lambda ms: 2 * batch * m * n * k * 1e-12 / (ms * 1e-3)
+    perf = lambda ms: 2 * BSC * m * n * k * 1e-12 / (ms * 1e-3)
     return perf(ms), perf(max_ms), perf(min_ms)
 
 
 def bench_triton(args, out_dir):
-    triton_workload_dict = {
-        "GEMM-1024-1024-1024": [1024, 1024, 1024],
-        "GEMM-4096-4096-4096": [4096, 4096, 4096],
-    }
     if args.workload[0:4] == "GEMM":
-        res, _, _ = benchmark(workload=args.workload,
-            batch=args.batch_size, 
-            m=triton_workload_dict[args.workload][0],
-            n=triton_workload_dict[args.workload][1],
-            k=triton_workload_dict[args.workload][2],
+        res, _, _ = benchmark(
+            workload=args.workload,
+            BSA=args.BSA,
+            m=args.HA,
+            k=args.WA,
+            BSB=args.BSB,
+            n=args.WB,
             acc_dtype=args.acc_dtype, 
             out_dtype=args.out_dtype,
             provider="triton", 
