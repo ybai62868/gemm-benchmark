@@ -5,12 +5,6 @@ import json
 
 from tvm import te, tir, topi
 
-def load_config():
-    cur_path = os.path.dirname(__file__)
-    config_path = os.path.join(cur_path, "configs")
-    with open(config_path) as f:
-        return json.load(f)
-
 
 def _conv2d_nhwc_f16(  # pylint: disable=invalid-name
     Input: te.Tensor,
@@ -182,12 +176,14 @@ def conv3d_ndhwc_f16(  # pylint: disable=invalid-name,missing-docstring
 
 
 def batch_matmul_nkmk_f16(  # pylint: disable=invalid-name,missing-docstring
-    B: int,
+    BSA: int,
+    BSB: int,
     M: int,
     N: int,
     K: int,
     out_dtype: str = "float32",
 ) -> Tuple[te.Tensor, te.Tensor, te.Tensor]:
+    B = max(BSA, BSB)
     x = te.placeholder((B, M, K), name="X", dtype="float16")
     y = te.placeholder((B, K, N), name="Y", dtype="float16")
     k = te.reduce_axis((0, K), name="k")
@@ -413,24 +409,23 @@ def transpose_batch_matmul_f16(  # pylint: disable=invalid-name,missing-docstrin
     return (query, value, out)
 
 
-
 def create_te_workload_f16(
     name: str,
-    batch_size: int = 1,
+    BSA: int,
+    BSB: int,
+    HA: int,
+    WB: int,
+    WA: int,
     out_dtype="float32",
 ) -> tir.PrimFunc:
     workload_func = CONFIGS_F16[name]
-    param = [batch_size] + shape_configs[name][1:]
+    param = [BSA, BSB, HA, WB, WA]
     f = te.create_prim_func(workload_func(*param, out_dtype=out_dtype))  # type: ignore
     return f
-
-shape_configs = load_config()
-
 
 CONFIGS_F16 = {
     "C1D": conv1d_nlc_f16,
     "C2D": conv2d_nhwc_f16,
     "C3D": conv3d_ndhwc_f16,
-    "GEMM-1024-1024-1024": batch_matmul_nkmk_f16,
-    "GEMM-4096-4096-4096": batch_matmul_nkmk_f16,
+    "GEMM": batch_matmul_nkmk_f16,
 }

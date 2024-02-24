@@ -17,7 +17,6 @@ def cuda_build(mod, target, _params):
         return tvm_build(mod, target=target)
 
 
-
 def prepare_runner(args):
     if args.use_rpc:
         rpc_host = args.rpc_host or os.environ.get("TVM_RPC_HOST")
@@ -82,11 +81,16 @@ def bench_tvm_ms(args, out_dir):
     else:
         raise Exception("Unsupported dtype")
     mod = create_te_workload_f16(
-        args.workload, batch_size=args.batch_size, out_dtype=args.out_dtype
+        args.workload, 
+        args.BSA,
+        args.BSB,
+        args.HA,
+        args.WB,
+        args.WA,
+        out_dtype=args.out_dtype
     )
     print(mod)
     print("start tuning with meta schedule ...")
-    # import pdb;pdb.set_trace()
     sch = ms.tune_tir(
         mod=mod,
         target=Target(args.target),
@@ -102,5 +106,5 @@ def bench_tvm_ms(args, out_dir):
         print("No valid schedule found!")
         exit()
     print(sch.mod.script())
-    print(sch.trace)
+    print(sch.trace)    
 
