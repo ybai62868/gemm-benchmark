@@ -38,12 +38,13 @@ def parse_args():
         type=str,
         required=True,
     )
+    args.add_argument("--m", type=int, required=True)
+    args.add_argument("--n", type=int, required=True)
+    args.add_argument("--k", type=int, required=True)
     args.add_argument("--BSA", type=int, required=True)
-    args.add_argument("--HA", type=int, required=True)
-    args.add_argument("--WA", type=int, required=True)
     args.add_argument("--BSB", type=int, required=True)
-    args.add_argument("--HB", type=int, required=True)
-    args.add_argument("--WB", type=int, required=True)
+    args.add_argument("--TransA", type=str, required=True)
+    args.add_argument("--TransB", type=str, required=True)
     args.add_argument("--engine", type=str, choices=['tvm_ms', 'triton', 'cutlass', 'torch'], required=True)
     args.add_argument("--target", type=str)
     args.add_argument("--num_trials", type=int, default=1000)
@@ -85,14 +86,15 @@ def bench(command_line_args: Optional[str]=None):
     args = parse_args()
     print(f"current engine is {args.engine}")
 
-    task_name = 'batch_{}_{}_{}_{}_{}_{}_{}_{}_input_{}_acc_{}_output_{}'.format(
+    task_name = 'batch_{}_{}_{}_{}_{}_{}_{}_{}_{}_input_{}_acc_{}_output_{}'.format(
         args.workload,
         args.BSA, 
         args.BSB,
-        args.HA,
-        args.WA,
-        args.HB,
-        args.WB, 
+        args.m,
+        args.n,
+        args.k,
+        args.TransA,
+        args.TransB,
         args.engine, 
         args.input_dtype, 
         args.acc_dtype, 

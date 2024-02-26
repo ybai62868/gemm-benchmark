@@ -175,7 +175,13 @@ def conv3d_ndhwc_f16(  # pylint: disable=invalid-name,missing-docstring
     return (inputs, weight, output)
 
 
-def batch_matmul_nkmk_f16(  # pylint: disable=invalid-name,missing-docstring
+
+    # "GEMM_N_N": batch_matmul_mkkn_f16,
+    # "GEMM_N_T": batch_matmul_mknk_f16,
+    # "GEMM_T_N": batch_matmul_kmkn_f16,
+    # "GEMM_T_T": batch_matmul_kmnk_f16,
+
+def batch_matmul_mkkn_f16(  # pylint: disable=invalid-name,missing-docstring
     B: int,
     M: int,
     N: int,
@@ -194,6 +200,71 @@ def batch_matmul_nkmk_f16(  # pylint: disable=invalid-name,missing-docstring
         name="Z",
     )
     return (x, y, z)
+
+
+def batch_matmul_mknk_f16(  # pylint: disable=invalid-name,missing-docstring
+    B: int,
+    M: int,
+    N: int,
+    K: int,
+    out_dtype: str = "float32",
+) -> Tuple[te.Tensor, te.Tensor, te.Tensor]:
+    x = te.placeholder((B, M, K), name="X", dtype="float16")
+    y = te.placeholder((B, N, K), name="Y", dtype="float16")
+    k = te.reduce_axis((0, K), name="k")
+    z = te.compute(
+        (B, M, N),
+        lambda b, i, j: te.sum(
+            tir.Cast(out_dtype, x[b][i][k]) * tir.Cast(out_dtype, y[b][j][k]),
+            axis=[k],
+        ),
+        name="Z",
+    )
+    return (x, y, z)
+
+
+def batch_matmul_kmkn_f16(  # pylint: disable=invalid-name,missing-docstring
+    B: int,
+    M: int,
+    N: int,
+    K: int,
+    out_dtype: str = "float32",
+) -> Tuple[te.Tensor, te.Tensor, te.Tensor]:
+    x = te.placeholder((B, K, M), name="X", dtype="float16")
+    y = te.placeholder((B, K, N), name="Y", dtype="float16")
+    k = te.reduce_axis((0, K), name="k")
+    z = te.compute(
+        (B, M, N),
+        lambda b, i, j: te.sum(
+            tir.Cast(out_dtype, x[b][k][i]) * tir.Cast(out_dtype, y[b][k][j]),
+            axis=[k],
+        ),
+        name="Z",
+    )
+    return (x, y, z)
+
+
+def batch_matmul_kmnk_f16(  # pylint: disable=invalid-name,missing-docstring
+    B: int,
+    M: int,
+    N: int,
+    K: int,
+    out_dtype: str = "float32",
+) -> Tuple[te.Tensor, te.Tensor, te.Tensor]:
+    x = te.placeholder((B, K, M), name="X", dtype="float16")
+    y = te.placeholder((B, N, K), name="Y", dtype="float16")
+    k = te.reduce_axis((0, K), name="k")
+    z = te.compute(
+        (B, M, N),
+        lambda b, i, j: te.sum(
+            tir.Cast(out_dtype, x[b][k][i]) * tir.Cast(out_dtype, y[b][j][k]),
+            axis=[k],
+        ),
+        name="Z",
+    )
+    return (x, y, z)
+
+
 
 
 def depthwise_conv2d_nhwc_f16(  # pylint: disable=invalid-name,missing-docstring
@@ -411,15 +482,28 @@ def create_te_workload_f16(
     name: str,
     BSA: int,
     BSB: int,
-    HA: int,
-    HB: int,
-    WA: int,
+    TransA: str,
+    TransB: str,
+    m: int,
+    n: int,
+    k: int,
     out_dtype="float32",
 ) -> tir.PrimFunc:
+    
+    if TransA == "N" and TransB == "N":
+        name = "GEMM_N_N"
+    elif TransA == "N" and TransB == "T":
+        name = "GEMM_N_T"
+    elif TransA == "T" and TransB == "N":
+        name = "GEMM_T_N"
+    else:
+        name = "GEMM_T_T"
+    
+
     workload_func = CONFIGS_F16[name]
     BATCH = max(BSA, BSB)
-    param = [BATCH, HA, HB, WA]
-    print(param)
+    param = [BATCH, m, n, k]
+    
     f = te.create_prim_func(workload_func(*param, out_dtype=out_dtype))  # type: ignore
     return f
 
@@ -427,5 +511,8 @@ CONFIGS_F16 = {
     "C1D": conv1d_nlc_f16,
     "C2D": conv2d_nhwc_f16,
     "C3D": conv3d_ndhwc_f16,
-    "GEMM": batch_matmul_nkmk_f16,
+    "GEMM_N_N": batch_matmul_mkkn_f16,
+    "GEMM_N_T": batch_matmul_mknk_f16,
+    "GEMM_T_N": batch_matmul_kmkn_f16,
+    "GEMM_T_T": batch_matmul_kmnk_f16,
 }

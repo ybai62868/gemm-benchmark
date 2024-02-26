@@ -232,9 +232,9 @@ def bench_cutlass(args, out_dir):
     if args.workload[0:4] == "GEMM":
         GEMM(workload=args.workload,
             batch=BSC,
-            m=args.HA,
-            k=args.WA,
-            n=args.WB,
+            m=args.m,
+            n=args.n,
+            k=args.k,
             acc_dtype=args.acc_dtype, 
             out_dtype=args.out_dtype, 
             profiler=cutlass_profiler,

@@ -86,8 +86,6 @@ def matmul(a, b, activation=None):
     # checks constraints
     assert len(a.shape) == len(b.shape) == 3
     assert a.shape[2] == b.shape[1], "incompatible dimensions"
-    assert a.is_contiguous(), "matrix A must be contiguous"
-    assert b.is_contiguous(), "matrix B must be contiguous"
     B, M, K = a.shape
     B, K, N = b.shape
     assert (
@@ -109,40 +107,120 @@ def matmul(a, b, activation=None):
     )
     return c
 
+
+
+def init_input(batch, m, n, dtype, acc_dtype):
+    # Use small range of values to prevent numerical issues.
+    min_exp = -4 if acc_dtype == "float16" else -10
+    exponents = torch.randint(min_exp, 0, size=(batch, m, n))
+    ret = (2.**exponents).to(getattr(torch, dtype)).to("cuda")
+    return ret
+
+
 def test_correctness(a, b):
     torch_output = torch.bmm(a, b)
     triton_output = matmul(a, b)
-    print(f"triton_output={triton_output}")
-    print(f"torch_output={torch_output}")
+    # print(f"triton_output={triton_output}")
+    # print(f"torch_output={torch_output}")
     if torch.allclose(triton_output, torch_output, atol=1e-2, rtol=1e-2):
         print("✅ Triton and Torch match")
     else:
         print("❌ Triton and Torch differ")
 
 
-def benchmark(workload:str, BSA:int, BSB:int, n: int, m: int, k: int, acc_dtype: str, out_dtype: str, provider: str, out_dir: str):
+
+def benchmark(workload:str, 
+              m:int,
+              n:int,
+              k:int,
+              BSA:int, 
+              BSB:int, 
+              TransA:str, 
+              TransB:str, 
+              acc_dtype: str, 
+              out_dtype: str, 
+              provider: str, 
+              out_dir: str):
     input_dtype = torch.float16
     torch.manual_seed(0)
-    a = torch.randn((BSA, m, k), device='cuda', dtype=input_dtype)
-    b = torch.randn((BSB, k, n), device='cuda', dtype=input_dtype)
-    test_correctness(a, b)
     BSC = max(BSA, BSB)    
     quantiles = [0.5, 0.2, 0.8]
-    if provider == 'triton':
-        ms, min_ms, max_ms = triton.testing.do_bench(lambda: matmul(a, b), quantiles=quantiles)
+
+    # a = init_input(BSC, m, k, "torch.float16", acc_dtype)
+    # b = init_input(BSC, k, n, "torch.float16", acc_dtype)
+
+    a = torch.randn((BSA, m, k), device='cuda', dtype=input_dtype)
+    b = torch.randn((BSB, k, n), device='cuda', dtype=input_dtype)
+    if TransA == "N" and TransB == "N":
+        a = a
+        b = b
+        test_correctness(a, b)
+
+
+    elif TransA == "N" and TransB == "T":
+        a = a
+        b = b.transpose(-1, -2).contiguous().transpose(-1, -2)
+        test_correctness(a, b)
+
+    
+    elif TransA == "T" and TransB == "N":
+        a = a.transpose(-1, -2).contiguous().transpose(-1, -2)
+        b = b
+        test_correctness(a, b)
+
+
+    else:
+        a = a.transpose(-1, -2).contiguous().transpose(-1, -2)
+        b = b.transpose(-1, -2).contiguous().transpose(-1, -2)
+        test_correctness(a, b)
+
+
+    
+    ms, min_ms, max_ms = triton.testing.do_bench(lambda: matmul(a, b), quantiles=quantiles)
     perf = lambda ms: 2 * BSC * m * n * k * 1e-12 / (ms * 1e-3)
     return perf(ms), perf(max_ms), perf(min_ms)
+
+
+
+
+
+
+
+
+    
+    # input_dtype = torch.float16
+    # torch.manual_seed(0)
+    # a = torch.randn((BSA, m, k), device='cuda', dtype=input_dtype)
+    # b = torch.randn((BSB, k, n), device='cuda', dtype=input_dtype)
+    # test_correctness(a, b)
+    # BSC = max(BSA, BSB)    
+    # quantiles = [0.5, 0.2, 0.8]
+    # if provider == 'triton':
+    #     ms, min_ms, max_ms = triton.testing.do_bench(lambda: matmul(a, b), quantiles=quantiles)
+    # perf = lambda ms: 2 * BSC * m * n * k * 1e-12 / (ms * 1e-3)
+    # return perf(ms), perf(max_ms), perf(min_ms)
+
+
+
+
+
+
+
+
+
 
 
 def bench_triton(args, out_dir):
     if args.workload[0:4] == "GEMM":
         res, _, _ = benchmark(
             workload=args.workload,
+            m=args.m,
+            n=args.n,
+            k=args.k,
             BSA=args.BSA,
-            m=args.HA,
-            k=args.WA,
             BSB=args.BSB,
-            n=args.WB,
+            TransA=args.TransA,
+            TransB=args.TransB,
             acc_dtype=args.acc_dtype, 
             out_dtype=args.out_dtype,
             provider="triton", 

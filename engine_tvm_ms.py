@@ -84,9 +84,11 @@ def bench_tvm_ms(args, out_dir):
         args.workload, 
         args.BSA,
         args.BSB,
-        args.HA,
-        args.HB,
-        args.WA,
+        args.TransA,
+        args.TransB,
+        args.m,
+        args.n,
+        args.k,
         out_dtype=args.out_dtype
     )
     print(mod)
